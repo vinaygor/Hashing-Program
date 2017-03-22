@@ -2,13 +2,17 @@ package com.vinay.hashing;
 
 import java.util.Random;
 import java.util.Scanner;
+import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 class HashingOperations{
     int maxSize,currentSize;
-    String vals[];
-    String keys[];
+    public String vals[];
+    public String keys[];
     double loadLimit;
     int primeNumber;
+    
     HashingOperations(int size)
     {
         currentSize=0;
@@ -104,6 +108,43 @@ class HashingOperations{
             System.out.println(e);
         }
     }
+    
+    public void insertLinearThreading(String key, String value)
+    {
+        try{
+        int hashValue=hash(key);
+        if(getLoadFactor()<=loadLimit)
+        {
+            if(vals[hashValue]==null)
+            {
+                currentSize++;
+                keys[hashValue]=key;
+                vals[hashValue]=value;
+                return;
+            }
+
+            for(int i=0;i<maxSize;i++)
+            {
+                if(hashValue==maxSize-1)
+                    hashValue=0;
+
+                if(vals[hashValue]==null)
+                {
+                    currentSize++;
+                    keys[hashValue]=key;
+                    vals[hashValue]=value;
+                    return;
+                }
+                hashValue+=1;
+            }
+        }
+        }
+        catch(Exception e)
+        {
+            System.out.println(e);
+        }
+    }
+    
     
     public void reHash(String tempVal[],String tempKey[], String type)
     {
@@ -245,15 +286,21 @@ class HashingOperations{
             String tempVal[]=vals;
             clear();
             maxSize=maxSize*2;
+            primeNumber=getPrime(maxSize);
             keys=new String[maxSize];
             vals=new String[maxSize];
             reHash(tempVal, tempKey, "double");
             insertDoubleHashing(key, value);
         }
     }
+    
+    
 }
 
 public class Hashing{
+    static Thread t;
+    static HashingOperations hash1;
+    static HashingOperations hash2;
     public static void main(String args[])
     {
         Scanner s= new Scanner(System.in);
@@ -273,7 +320,7 @@ public class Hashing{
 
                     String inputKeys[]=new String[ho.maxSize];
                     String inputVals[]=new String[ho.maxSize];
-                    ho.loadLimit=0.5;
+                    ho.loadLimit=1.0;
                     ho.primeNumber = ho.getPrime(inputNumber);
                     for(int i=0;i<inputNumber;i++)
                     {
@@ -303,7 +350,7 @@ public class Hashing{
                     System.out.println("Current size: "+ho.getCurrentSize());
                     System.out.println("Max size: "+ho.getMaxSize());
                     System.out.println("Load Factor: "+ho.getLoadFactor());
-                    ho.display();
+                    //ho.display();
 
 
                     /*
@@ -356,7 +403,7 @@ public class Hashing{
                     System.out.println("Current size: "+ho.getCurrentSize());
                     System.out.println("Max size: "+ho.getMaxSize());
                     System.out.println("Load Factor: "+ho.getLoadFactor());
-                    ho.display();
+                    //ho.display();
 
 
 
@@ -385,7 +432,7 @@ public class Hashing{
                     System.out.println("Current size: "+ho.getCurrentSize());
                     System.out.println("Max size: "+ho.getMaxSize());
                     System.out.println("Load Factor: "+ho.getLoadFactor());
-                    ho.display();
+                    //ho.display();
 
 
                 
@@ -394,8 +441,8 @@ public class Hashing{
             case 2:
                 System.out.println("Please enter the size of initial hash table:");
                 int inputSize = s.nextInt();
-                HashingOperations hash1 = new HashingOperations(inputSize);
-                HashingOperations hash2 = new HashingOperations(inputSize*3);
+                hash1 = new HashingOperations(inputSize);
+                hash2 = new HashingOperations(inputSize*3);
                 String inputValue[]=new String[inputSize*2]; 
                 String inputKey[]=new String[inputSize*2]; 
                 for(int i=0;i<(inputSize*2);i++)
@@ -403,19 +450,43 @@ public class Hashing{
                     inputKey[i]=String.valueOf(i);
                     inputValue[i]="Val-"+i;
                 }
-                hash2.loadLimit=0.1;
+                hash2.loadLimit=1.0;
                 hash1.loadLimit=0.5;
-                for(int i=0;i<inputKey.length;i++)
+                int i;
+                for(i=0;i<inputKey.length;i++)
                 {
-                    hash1.insertLinear(inputKey[i],inputValue[i]);
                     if(hash1.getLoadFactor()>0.5)
                     {
-                        
+                        hash2.insertLinearThreading(inputKey[i], inputValue[i]);
+                            System.out.println(inputKey[i]+" "+inputValue[i]);
+                            start(inputSize);
                     }
+                    if(hash1.getLoadFactor()<=0.5)
+                    hash1.insertLinearThreading(inputKey[i],inputValue[i]);
+                    
+//                        while(i<inputKey.length)
+//                        {
+//                            
+//                            
+//                            i++;
+//                            
+//                        }
+//                        break;
+                    
+                    try {         
+                       t.sleep(500);
+                   } catch (InterruptedException ex) {
+                       System.out.println("Error in code");
+                   }
                 }
+                System.out.println("------------------------------");
+                hash1.display();
+                System.out.println("------------------------------");
+                hash2.display();
                 
             break;
         }
+        
         
         
 //        while(true)
@@ -459,4 +530,44 @@ public class Hashing{
         
         
     }
+    public static void start(int inputSize)
+    {
+       for(int i=0; i<inputSize; i++){
+           if(hash1.getLoadFactor()>0.1)
+           {
+      t=new Thread("T-"+i){
+        public void run(){
+            
+          Random r=new Random();
+          int num=r.nextInt(inputSize);
+          if(hash1.keys[num]!=null)
+          {
+              String key=hash1.keys[num];
+              String value=hash1.vals[num];
+              hash1.keys[num]=null;
+              hash1.vals[num]=null;
+              hash1.currentSize--;
+              hash2.insertLinearThreading(key, value);
+              System.out.println("-- "+key+" "+value);
+          }
+          
+t.interrupt();
+
+        }
+        
+      };
+           
+      
+      t.start();
+           
+           try {         
+               t.sleep(500);
+           } catch (InterruptedException ex) {
+               System.out.println("Error in code");
+           }
+           }
+    }
+    
+    }
+    
 }
